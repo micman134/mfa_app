@@ -22,21 +22,25 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # ============================================
-# CONFIGURATION - Read from Environment Variables
+# CONFIGURATION - POSTGRESQL VERSION
 # ============================================
 
 # Secret key
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 
-# MySQL Configuration - READ FROM ENVIRONMENT
-MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
-MYSQL_USER = os.environ.get('MYSQL_USER', 'root')
-MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
-MYSQL_DATABASE = os.environ.get('MYSQL_DATABASE', 'mfa_system')
-MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
+# PostgreSQL Configuration - Read from Environment Variables
+# Render will set DATABASE_URL automatically if you add a PostgreSQL instance
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if not DATABASE_URL:
+    # Manual configuration if DATABASE_URL not set
+    PG_HOST = os.environ.get('PG_HOST', 'localhost')
+    PG_USER = os.environ.get('PG_USER', 'postgres')
+    PG_PASSWORD = os.environ.get('PG_PASSWORD', '')
+    PG_DATABASE = os.environ.get('PG_DATABASE', 'mfa_system')
+    PG_PORT = os.environ.get('PG_PORT', '5432')
+    DATABASE_URL = f'postgresql://{PG_USER}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{PG_DATABASE}'
 
-# Build database URI
-app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4'
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 10,
@@ -68,7 +72,7 @@ login_manager.login_view = 'login'
 mail = Mail(app)
 
 # ============================================
-# DATABASE MODELS
+# DATABASE MODELS - PostgreSQL Compatible
 # ============================================
 
 class User(UserMixin, db.Model):
@@ -79,7 +83,8 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(100))
-    role = db.Column(db.Enum('admin', 'student', 'supervisor'), default='student')
+    # PostgreSQL handles ENUM differently - using String with check constraint
+    role = db.Column(db.String(20), default='student')  # 'admin', 'student', 'supervisor'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
     failed_attempts = db.Column(db.Integer, default=0)
@@ -148,13 +153,13 @@ class RiskRule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     rule_name = db.Column(db.String(100), nullable=False)
     rule_description = db.Column(db.Text)
-    rule_category = db.Column(db.Enum('time', 'location', 'device', 'behavior', 'velocity', 'threshold'), default='behavior')
+    rule_category = db.Column(db.String(20), default='behavior')  # time, location, device, behavior, velocity, threshold
     risk_weight = db.Column(db.Integer, default=10)
-    condition_type = db.Column(db.Enum('range', 'equals', 'greater_than', 'less_than', 'contains', 'in_list', 'not_in_list', 'regex'), default='equals')
+    condition_type = db.Column(db.String(20), default='equals')  # range, equals, greater_than, less_than, contains, in_list, not_in_list, regex
     condition_field = db.Column(db.String(50), nullable=False)
     condition_value = db.Column(db.Text, nullable=False)
-    risk_level = db.Column(db.Enum('low', 'medium', 'high', 'critical'), default='medium')
-    action_on_match = db.Column(db.Enum('log', 'alert', 'challenge', 'block'), default='log')
+    risk_level = db.Column(db.String(20), default='medium')  # low, medium, high, critical
+    action_on_match = db.Column(db.String(20), default='log')  # log, alert, challenge, block
     priority = db.Column(db.Integer, default=5)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -171,12 +176,23 @@ class ActionLog(db.Model):
     ip_address = db.Column(db.String(45))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+# Add check constraints for PostgreSQL (optional but good practice)
+# These ensure data integrity similar to MySQL ENUM
+from sqlalchemy import CheckConstraint
+
+# Add constraints after table definition
+__table_args__ = (
+    CheckConstraint("role IN ('admin', 'student', 'supervisor')", name='check_role'),
+    CheckConstraint("rule_category IN ('time', 'location', 'device', 'behavior', 'velocity', 'threshold')", name='check_rule_category'),
+    CheckConstraint("risk_level IN ('low', 'medium', 'high', 'critical')", name='check_risk_level'),
+)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 # ============================================
-# HELPER FUNCTIONS
+# HELPER FUNCTIONS (Same as before - unchanged)
 # ============================================
 
 def generate_device_fingerprint():
@@ -375,7 +391,7 @@ def send_otp_email(email, name, otp, role):
         return False
 
 # ============================================
-# AUTHENTICATION ROUTES
+# AUTHENTICATION ROUTES (All unchanged)
 # ============================================
 
 @app.route('/')
@@ -728,7 +744,7 @@ def student_dashboard():
     return render_template('student_dashboard.html', user=current_user, recent_logins=recent_logins)
 
 # ============================================
-# ADDITIONAL ADMIN ROUTES
+# ADDITIONAL ADMIN ROUTES (Unchanged)
 # ============================================
 
 @app.route('/admin/logs')
@@ -974,9 +990,8 @@ with app.app_context():
 
 if __name__ == '__main__':
     print("\n" + "="*60)
-    print("🔐 MFA System with AI Risk Assessment")
+    print("🔐 MFA System with AI Risk Assessment (PostgreSQL)")
     print("="*60)
-    print("\n📊 Database: MySQL")
     print(f"🌐 Server: http://localhost:5000")
     print("\n🔐 Admin Login:")
     print("   Email: admin@test.com")
