@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - MFA System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f4f6f9;
+            overflow-x: hidden;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 260px;
+            background: linear-gradient(135deg, #1a1c2e, #2d2f45);
+            color: white;
+            transition: all 0.3s;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 20px;
+        }
+        
+        .sidebar-header small {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+        
+        .sidebar-menu .menu-item {
+            padding: 12px 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        
+        .sidebar-menu .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .sidebar-menu .menu-item.active {
+            background: rgba(102,126,234,0.3);
+            border-left: 3px solid #667eea;
+            color: white;
+        }
+        
+        .sidebar-menu .menu-item i {
+            width: 20px;
+            font-size: 18px;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: 260px;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        /* Top Navbar */
+        .top-navbar {
+            background: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+        
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        /* Stats Cards */
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        /* Chart Containers */
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        /* Table Styles */
+        .data-table {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        /* Activity Feed */
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .activity-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-icon {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .activity-icon.success { background: #d4edda; color: #155724; }
+        .activity-icon.danger { background: #f8d7da; color: #721c24; }
+        .activity-icon.info { background: #d1ecf1; color: #0c5460; }
+        .activity-icon.warning { background: #fff3cd; color: #856404; }
+        
+        .activity-content {
+            flex: 1;
+        }
+        
+        .activity-text {
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .activity-time {
+            font-size: 11px;
+            color: #999;
+        }
+        
+        /* Badge Styles */
+        .badge {
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 992px) {
+            .sidebar {
+                left: -260px;
+            }
+            .sidebar.show {
+                left: 0;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="fas fa-shield-alt"></i> MFA System</h3>
+            <small>Admin Panel</small>
+        </div>
+        <div class="sidebar-menu">
+            <a href="{{ url_for('admin_dashboard') }}" class="menu-item active">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{{ url_for('admin_logs') }}" class="menu-item">
+                <i class="fas fa-history"></i>
+                <span>Authentication Logs</span>
+            </a>
+            <a href="{{ url_for('admin_users') }}" class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>User Management</span>
+            </a>
+            <a href="{{ url_for('admin_rules') }}" class="menu-item">
+                <i class="fas fa-shield"></i>
+                <span>Risk Rules</span>
+            </a>
+            <a href="{{ url_for('model_status') }}" class="menu-item">
+                <i class="fas fa-robot"></i>
+                <span>ML Model Status</span>
+            </a>
+            <a href="{{ url_for('logout') }}" class="menu-item">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Navbar -->
+        <div class="top-navbar">
+            <h1 class="page-title">Dashboard</h1>
+            <div class="user-menu">
+                <span>Welcome, {{ user.full_name or user.username }}</span>
+                <div class="user-avatar">
+                    {{ user.username[0]|upper }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Current Time Alert -->
+        <div class="alert alert-info">
+            <i class="fas fa-calendar"></i>
+            <strong>Current Time:</strong> {{ datetime.strftime('%Y-%m-%d %H:%M:%S') }}
+        </div>
+        
+        <!-- Statistics Cards Row 1 -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #e3f2fd; color: #1976d2;">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.total_users }}</div>
+                    <div class="stat-label">Total Users</div>
+                    <small>{{ stats.active_users }} active</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #e8f5e8; color: #28a745;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.successful_logins }}</div>
+                    <div class="stat-label">Successful Logins</div>
+                    <small>{{ stats.today_logins }} today</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #fff3cd; color: #ffc107;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.challenged_attempts }}</div>
+                    <div class="stat-label">Challenged Logins</div>
+                    <small>Require MFA</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #f8d7da; color: #dc3545;">
+                        <i class="fas fa-ban"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.blocked_attempts }}</div>
+                    <div class="stat-label">Blocked Attempts</div>
+                    <small>{{ stats.today_blocked }} today</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics Cards Row 2 -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #e8eaf6; color: #3f51b5;">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="stat-value">{{ "%.1f"|format(stats.avg_risk_score) }}</div>
+                    <div class="stat-label">Avg Risk Score</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #e0f2f1; color: #009688;">
+                        <i class="fas fa-laptop"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.unique_devices }}</div>
+                    <div class="stat-label">Unique Devices</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #fce4ec; color: #e91e63;">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.unique_countries }}</div>
+                    <div class="stat-label">Unique Countries</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #fff3e0; color: #ff9800;">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <div class="stat-value">{{ stats.total_otp_sent }}</div>
+                    <div class="stat-label">OTP Sent</div>
+                    <small>{{ stats.otp_verified }} verified</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Row -->
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <div class="chart-title">Login Trends (Last 7 Days)</div>
+                    <div class="chart-wrapper">
+                        <canvas id="loginTrendsChart" style="width:100%; height:100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <div class="chart-title">Risk Score Distribution</div>
+                    <div class="chart-wrapper">
+                        <canvas id="riskDistributionChart" style="width:100%; height:100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <div class="chart-title">Browser Distribution</div>
+                    <div class="chart-wrapper">
+                        <canvas id="browserChart" style="width:100%; height:100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <div class="chart-title">Operating System Distribution</div>
+                    <div class="chart-wrapper">
+                        <canvas id="osChart" style="width:100%; height:100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <div class="chart-title">Risk Score by Hour</div>
+                    <div class="chart-wrapper">
+                        <canvas id="hourRiskChart" style="width:100%; height:100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <div class="chart-title">Top Countries by Login Attempts</div>
+                    <div class="chart-wrapper">
+                        <canvas id="countryChart" style="width:100%; height:100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Activities and Deadlines -->
+        <div class="row">
+            <div class="col-lg-7">
+                <div class="data-table">
+                    <div class="chart-title">
+                        Recent Activities
+                        <a href="#" style="float: right; font-size: 12px;">View All</a>
+                    </div>
+                    <div class="activity-feed">
+                        {% for activity in recent_activities %}
+                        <div class="activity-item">
+                            <div class="activity-icon {{ activity.color }}">
+                                <i class="fas {{ activity.icon }}"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-text">{{ activity.description }}</div>
+                                <div class="activity-time">{{ activity.time.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-3">No recent activities</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="data-table">
+                    <div class="chart-title">System Overview</div>
+                    <table class="table">
+                        <tr>
+                            <td><strong>Total Auth Attempts</strong></td>
+                            <td class="text-right">{{ stats.total_auth_attempts }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Success Rate</strong></td>
+                            <td class="text-right">{{ "%.1f"|format(stats.successful_logins / stats.total_auth_attempts * 100 if stats.total_auth_attempts > 0 else 0) }}%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Active Risk Rules</strong></td>
+                            <td class="text-right">{{ stats.active_rules }} / {{ stats.total_rules }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Location Mismatch Rate</strong></td>
+                            <td class="text-right">{{ stats.location_mismatch_rate }}%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>OTP Verification Rate</strong></td>
+                            <td class="text-right">{{ "%.1f"|format(stats.otp_verified / stats.total_otp_sent * 100 if stats.total_otp_sent > 0 else 0) }}%</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Logins Table -->
+        <div class="data-table">
+            <div class="chart-title">
+                Recent Successful Logins
+                <a href="{{ url_for('admin_logs') }}" style="float: right; font-size: 12px;">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Risk Score</th>
+                            <th>Browser</th>
+                            <th>Country</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for login in recent_placements %}
+                        <tr>
+                            <td>{{ login.username or 'Unknown' }}</td>
+                            <td>{{ login.email or 'N/A' }}</td>
+                            <td>
+                                <span class="badge {% if login.risk_score < 30 %}bg-success{% elif login.risk_score < 70 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ "%.1f"|format(login.risk_score) if login.risk_score else 'N/A' }}
+                                </span>
+                            </td>
+                            <td>{{ login.browser or 'Unknown' }}</td>
+                            <td>{{ login.country or 'Unknown' }}</td>
+                            <td>{{ login.created_at.strftime('%H:%M:%S') if login.created_at else 'N/A' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">No login records found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    
+    
+    <script>
+        // Store chart instances to prevent duplicates
+        let charts = {};
+        
+        // Helper function to destroy existing chart
+        function destroyChart(chartId) {
+            if (charts[chartId]) {
+                charts[chartId].destroy();
+                charts[chartId] = null;
+            }
+        }
+        
+        // Initialize all charts when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Login Trends Chart
+            const loginTrendsCtx = document.getElementById('loginTrendsChart').getContext('2d');
+            destroyChart('loginTrends');
+            charts['loginTrends'] = new Chart(loginTrendsCtx, {
+                type: 'line',
+                data: {
+                    labels: {{ login_trends|map(attribute='date')|list|tojson }},
+                    datasets: [{
+                        label: 'Successful Logins',
+                        data: {{ login_trends|map(attribute='success')|list|tojson }},
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }, {
+                        label: 'Failed Logins',
+                        data: {{ login_trends|map(attribute='failed')|list|tojson }},
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+            
+            // Risk Distribution Chart
+            const riskDistCtx = document.getElementById('riskDistributionChart').getContext('2d');
+            destroyChart('riskDist');
+            charts['riskDist'] = new Chart(riskDistCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Low Risk (<30)', 'Medium Risk (30-69)', 'High Risk (70+)'],
+                    datasets: [{
+                        data: [{{ stats.low_risk_logins }}, {{ stats.medium_risk_logins }}, {{ stats.high_risk_logins }}],
+                        backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+            
+            // Browser Distribution Chart
+            const browserCtx = document.getElementById('browserChart').getContext('2d');
+            destroyChart('browser');
+            charts['browser'] = new Chart(browserCtx, {
+                type: 'bar',
+                data: {
+                    labels: {{ browser_data|map(attribute='browser')|list|tojson }},
+                    datasets: [{
+                        label: 'Login Count',
+                        data: {{ browser_data|map(attribute='count')|list|tojson }},
+                        backgroundColor: '#667eea',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { drawBorder: false } }
+                    }
+                }
+            });
+            
+            // OS Distribution Chart
+            const osCtx = document.getElementById('osChart').getContext('2d');
+            destroyChart('os');
+            charts['os'] = new Chart(osCtx, {
+                type: 'bar',
+                data: {
+                    labels: {{ os_data|map(attribute='os')|list|tojson }},
+                    datasets: [{
+                        label: 'Login Count',
+                        data: {{ os_data|map(attribute='count')|list|tojson }},
+                        backgroundColor: '#764ba2',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { drawBorder: false } }
+                    }
+                }
+            });
+            
+            // Risk by Hour Chart
+            const hourRiskCtx = document.getElementById('hourRiskChart').getContext('2d');
+            destroyChart('hourRisk');
+            charts['hourRisk'] = new Chart(hourRiskCtx, {
+                type: 'line',
+                data: {
+                    labels: {{ hour_risk_data|map(attribute='hour')|list|tojson }},
+                    datasets: [{
+                        label: 'Average Risk Score',
+                        data: {{ hour_risk_data|map(attribute='avg_risk')|list|tojson }},
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#ffc107'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { drawBorder: false } }
+                    }
+                }
+            });
+            
+            // Country Chart
+            const countryCtx = document.getElementById('countryChart').getContext('2d');
+            destroyChart('country');
+            charts['country'] = new Chart(countryCtx, {
+                type: 'bar',
+                data: {
+                    labels: {{ country_data|map(attribute='country')|list|tojson }},
+                    datasets: [{
+                        label: 'Login Attempts',
+                        data: {{ country_data|map(attribute='count')|list|tojson }},
+                        backgroundColor: '#009688',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { drawBorder: false } }
+                    }
+                }
+            });
+        });
+        
+        // Handle window resize - only update, don't recreate
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function() {
+                Object.values(charts).forEach(chart => {
+                    if (chart) chart.resize();
+                });
+            }, 250);
+        });
+    </script>
+</body>
+</html>

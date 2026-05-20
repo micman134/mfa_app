@@ -1,0 +1,43 @@
+{% extends "base_admin.html" %}
+
+{% block title %}ML Model Status{% endblock %}
+
+{% block page_title %}ML Model Status{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="data-table">
+            <div class="chart-title">
+                <i class="fas fa-robot"></i> Render API Status
+            </div>
+            <table class="table">
+                <tr><td><strong>Status:</strong></td><td><span class="badge {% if api_status == 'Online' %}bg-success{% elif api_status == 'Offline' %}bg-danger{% else %}bg-warning{% endif %}">{{ api_status }}</span></td></tr>
+                <tr><td><strong>Response Time:</strong></td><td>{{ "%.0f"|format(api_response_time) if api_response_time else 'N/A' }} ms</td></tr>
+                <tr><td><strong>API URL:</strong></td><td><code>{{ app.config['RENDER_API_URL'] }}</code></td></tr>
+            </table>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="data-table">
+            <div class="chart-title">
+                <i class="fas fa-chart-line"></i> Recent Predictions
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead><tr><th>User</th><th>Risk Score</th><th>Time</th></tr></thead>
+                    <tbody>
+                        {% for pred in recent_predictions[:10] %}
+                        <tr>
+                            <td>{{ pred.username or 'Unknown' }}</td>
+                            <td><span class="badge {% if pred.risk_score < 30 %}bg-success{% elif pred.risk_score < 70 %}bg-warning{% else %}bg-danger{% endif %}">{{ "%.1f"|format(pred.risk_score) if pred.risk_score else 'N/A' }}</span></td>
+                            <td>{{ pred.created_at.strftime('%Y-%m-%d %H:%M:%S') if pred.created_at else 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

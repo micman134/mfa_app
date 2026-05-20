@@ -1,0 +1,88 @@
+{% extends "base_admin.html" %}
+
+{% block title %}Authentication Logs{% endblock %}
+
+{% block content %}
+<div class="data-table">
+    <div class="chart-title">
+        <i class="fas fa-history"></i> Authentication Logs
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Risk Score</th>
+                    <th>Browser</th>
+                    <th>OS</th>
+                    <th>Country</th>
+                    <th>IP Address</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs.items %}
+                <tr>
+                    <td>{{ log.id }}</td>
+                    <td>{{ log.username or 'Unknown' }}</td>
+                    <td>{{ log.email or 'N/A' }}</td>
+                    <td>
+                        <span class="badge {% if log.status == 'success' %}bg-success{% elif log.status == 'failed' %}bg-danger{% else %}bg-warning{% endif %}">
+                            {{ log.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge {% if log.risk_score and log.risk_score < 30 %}bg-success{% elif log.risk_score and log.risk_score < 70 %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ "%.1f"|format(log.risk_score) if log.risk_score else 'N/A' }}
+                        </span>
+                    </td>
+                    <td>{{ log.browser or 'Unknown' }}</td>
+                    <td>{{ log.os or 'Unknown' }}</td>
+                    <td>{{ log.country or 'Unknown' }}</td>
+                    <td>{{ log.ip_address or 'Unknown' }}</td>
+                    <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else 'N/A' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="text-center">No authentication logs found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    {% if logs.pages > 1 %}
+    <nav class="mt-3">
+        <ul class="pagination">
+            {% if logs.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin_logs', page=logs.prev_num) }}">Previous</a>
+            </li>
+            {% endif %}
+            
+            {% for page_num in logs.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                {% if page_num %}
+                    {% if page_num == logs.page %}
+                    <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                    {% else %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('admin_logs', page=page_num) }}">{{ page_num }}</a></li>
+                    {% endif %}
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if logs.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin_logs', page=logs.next_num) }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

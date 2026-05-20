@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - MFA System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { color: #333; margin-bottom: 10px; }
+        .badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-admin { background: #dc3545; color: white; }
+        .badge-student { background: #28a745; color: white; }
+        .badge-supervisor { background: #ffc107; color: #333; }
+        .info-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .logout {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #dc3545;
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        .logout:hover { background: #c82333; transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Welcome, {{ user.full_name or user.username }}!</h1>
+            <p>You have successfully logged in to the MFA System.</p>
+            
+            <div class="info-panel">
+                <div class="info-row">
+                    <strong>Username:</strong>
+                    <span>{{ user.username }}</span>
+                </div>
+                <div class="info-row">
+                    <strong>Email:</strong>
+                    <span>{{ user.email }}</span>
+                </div>
+                <div class="info-row">
+                    <strong>Role:</strong>
+                    <span>
+                        <span class="badge badge-{{ user.role }}">
+                            {{ user.role|upper }}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <strong>Risk Score:</strong>
+                    <span>{{ session.get('risk_score', 'N/A') }}/100</span>
+                </div>
+                <div class="info-row">
+                    <strong>Last Login:</strong>
+                    <span>{{ user.last_login|datetime if user.last_login else 'First login' }}</span>
+                </div>
+            </div>
+            
+            <a href="{{ url_for('logout') }}" class="logout">Logout</a>
+        </div>
+    </div>
+</body>
+</html>

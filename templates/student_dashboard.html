@@ -1,0 +1,126 @@
+{% extends "base_student.html" %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block page_title %}Student Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            <i class="fas fa-user-graduate"></i>
+            <strong>Welcome back, {{ user.full_name or user.username }}!</strong>
+            <br>Your last login was: {{ user.last_login|datetime if user.last_login else 'First login' }}
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #e3f2fd; color: #1976d2;">
+                <i class="fas fa-sign-in-alt"></i>
+            </div>
+            <div class="stat-value">{{ recent_logins|length }}</div>
+            <div class="stat-label">Recent Logins</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #e8f5e8; color: #28a745;">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="stat-value">{{ "%.0f"|format(session.get('risk_score', 0)) }}%</div>
+            <div class="stat-label">Last Risk Score</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #fff3e0; color: #ff9800;">
+                <i class="fas fa-calendar"></i>
+            </div>
+            <div class="stat-value">{{ user.created_at|datetime }}</div>
+            <div class="stat-label">Member Since</div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Login History -->
+<div class="data-table">
+    <div class="chart-title">
+        <i class="fas fa-history"></i> Recent Login History
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Status</th>
+                    <th>Risk Score</th>
+                    <th>Browser</th>
+                    <th>OS</th>
+                    <th>Country</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in recent_logins %}
+                <tr>
+                    <td>{{ log.created_at|datetime if log.created_at else 'N/A' }}</td>
+                    <td>
+                        <span class="badge {% if log.status == 'success' %}bg-success{% elif log.status == 'failed' %}bg-danger{% else %}bg-warning{% endif %}">
+                            {{ log.status|upper }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge {% if log.risk_score and log.risk_score < 30 %}bg-success{% elif log.risk_score and log.risk_score < 70 %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ "%.1f"|format(log.risk_score) if log.risk_score else 'N/A' }}
+                        </span>
+                    </td>
+                    <td>{{ log.browser or 'Unknown' }}</td>
+                    <td>{{ log.os or 'Unknown' }}</td>
+                    <td>{{ log.country or 'Unknown' }}</td>
+                    <td>{{ log.ip_address or 'Unknown' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">No login history found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Security Tips -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="data-table">
+            <div class="chart-title">
+                <i class="fas fa-shield-alt"></i> Security Tips
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="text-center p-3">
+                        <i class="fas fa-laptop fa-2x text-primary"></i>
+                        <p class="mt-2"><strong>Use Known Devices</strong><br>Register your trusted devices</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center p-3">
+                        <i class="fas fa-map-marker-alt fa-2x text-success"></i>
+                        <p class="mt-2"><strong>Monitor Locations</strong><br>Check for unrecognized locations</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-center p-3">
+                        <i class="fas fa-clock fa-2x text-warning"></i>
+                        <p class="mt-2"><strong>Report Suspicious</strong><br>Contact support for unusual activity</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
