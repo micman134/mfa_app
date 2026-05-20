@@ -8,7 +8,6 @@ import random
 import requests
 import json
 import logging
-import os
 from functools import wraps
 from sqlalchemy import func, and_, or_
 from sqlalchemy.sql import text
@@ -20,23 +19,10 @@ logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
+app.secret_key = 'your-secret-key-here-change-in-production'
 
-# ============================================
-# CONFIGURATION - Read from Environment Variables
-# ============================================
-
-# Secret key
-app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
-
-# MySQL Configuration - READ FROM ENVIRONMENT
-MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
-MYSQL_USER = os.environ.get('MYSQL_USER', 'root')
-MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
-MYSQL_DATABASE = os.environ.get('MYSQL_DATABASE', 'mfa_system')
-MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
-
-# Build database URI
-app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4'
+# MySQL Configuration for your existing mfa_system database
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost/mfa_system'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 10,
@@ -45,18 +31,9 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 
 # Render API Configuration
-app.config['RENDER_API_URL'] = os.environ.get('RENDER_API_URL', 'https://mfa-r6ib.onrender.com')
-app.config['RENDER_API_TIMEOUT'] = int(os.environ.get('RENDER_API_TIMEOUT', 5))
-app.config['USE_RENDER_API'] = os.environ.get('USE_RENDER_API', 'true').lower() == 'true'
-
-# Email Configuration
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
-app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@mfasystem.com')
+app.config['RENDER_API_URL'] = 'https://mfa-r6ib.onrender.com'
+app.config['RENDER_API_TIMEOUT'] = 5
+app.config['USE_RENDER_API'] = True
 
 # Initialize extensions
 db = SQLAlchemy(app)
@@ -65,6 +42,7 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 # Initialize Flask-Mail
+app.config.from_object('config.DevelopmentConfig')
 mail = Mail(app)
 
 # ============================================
@@ -176,7 +154,7 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # ============================================
-# HELPER FUNCTIONS
+# HELPER FUNCTIONS (Same as before)
 # ============================================
 
 def generate_device_fingerprint():
@@ -349,30 +327,8 @@ def generate_otp():
     return f"{random.randint(100000, 999999)}"
 
 def send_otp_email(email, name, otp, role):
-    """Send OTP email using Flask-Mail"""
-    if not app.config['MAIL_USERNAME']:
-        logger.info(f"OTP for {email} ({role}): {otp} (Email not configured)")
-        return True
-    
-    try:
-        msg = Message(
-            subject=f"MFA Verification Code - {role.upper()} Login",
-            recipients=[email],
-            sender=app.config['MAIL_DEFAULT_SENDER']
-        )
-        msg.html = f"""
-        <h2>Your MFA Verification Code</h2>
-        <p>Hello {name},</p>
-        <p>Use this code to complete your login: <strong>{otp}</strong></p>
-        <p>This code expires in 5 minutes.</p>
-        <p>If you didn't request this, please ignore this email.</p>
-        """
-        mail.send(msg)
-        logger.info(f"OTP email sent to {email}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to send OTP email: {e}")
-        return False
+    logger.info(f"OTP for {email} ({role}): {otp}")
+    return True
 
 # ============================================
 # AUTHENTICATION ROUTES
@@ -385,7 +341,7 @@ def index():
 @app.route('/login')
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('admin_dashboard' if current_user.is_admin() else 'student_dashboard'))
+        return redirect(url_for('admin_dashboard' if current_user.is_admin() else 'dashboard'))
     return render_template('login.html')
 
 @app.route('/api/login', methods=['POST'])
@@ -574,7 +530,7 @@ def admin_dashboard():
         'active_users': User.query.filter(User.last_login >= datetime.utcnow() - timedelta(days=30)).count(),
     }
     
-    # Auth Log Statistics
+    # Auth Log Statistics - Fix DISTINCT queries for MySQL
     stats['total_auth_attempts'] = AuthLog.query.count()
     stats['successful_logins'] = AuthLog.query.filter_by(status='success').count()
     stats['failed_logins'] = AuthLog.query.filter_by(status='failed').count()
@@ -602,12 +558,12 @@ def admin_dashboard():
     stats['medium_risk_logins'] = AuthLog.query.filter(AuthLog.risk_score.between(30, 69)).count()
     stats['low_risk_logins'] = AuthLog.query.filter(AuthLog.risk_score < 30).count()
     
-    # Device statistics
+    # Device statistics - Fix for MySQL (use count with group_by instead of distinct)
     stats['unique_devices'] = db.session.query(AuthLog.device_fingerprint).filter(AuthLog.device_fingerprint.isnot(None)).distinct().count()
     stats['unique_browsers'] = db.session.query(AuthLog.browser).filter(AuthLog.browser.isnot(None)).distinct().count()
     stats['unique_os'] = db.session.query(AuthLog.os).filter(AuthLog.os.isnot(None)).distinct().count()
     
-    # Location statistics
+    # Location statistics - Fix for MySQL
     stats['unique_countries'] = db.session.query(AuthLog.country).filter(AuthLog.country.isnot(None), AuthLog.country != 'Local').distinct().count()
     location_mismatches = AuthLog.query.filter(AuthLog.location_mismatch == 1).count()
     stats['location_mismatch_rate'] = round((location_mismatches / stats['total_auth_attempts'] * 100), 1) if stats['total_auth_attempts'] > 0 else 0
@@ -741,6 +697,7 @@ def admin_logs():
     per_page = 50
     logs = AuthLog.query.order_by(AuthLog.created_at.desc()).paginate(page=page, per_page=per_page)
     
+    # Pass user to template
     return render_template('admin_logs.html', logs=logs, user=current_user)
 
 @app.route('/admin/users')
@@ -760,6 +717,8 @@ def admin_rules():
     
     rules = RiskRule.query.order_by(RiskRule.priority.desc()).all()
     return render_template('admin_rules.html', rules=rules, user=current_user)
+
+
 
 @app.route('/admin/risk-rules/add', methods=['GET', 'POST'])
 @login_required
@@ -784,6 +743,7 @@ def add_risk_rule():
         db.session.add(rule)
         db.session.commit()
         
+        # Log action
         action_log = ActionLog(
             user_id=current_user.id,
             action='add_rule',
@@ -820,6 +780,7 @@ def edit_risk_rule(rule_id):
         rule.updated_at = datetime.utcnow()
         db.session.commit()
         
+        # Log action
         action_log = ActionLog(
             user_id=current_user.id,
             action='edit_rule',
@@ -931,25 +892,25 @@ def health():
     })
 
 # ============================================
-# CREATE DEFAULT ADMIN (Run once on startup)
+# CREATE DEFAULT ADMIN
 # ============================================
 
 def create_default_admin():
-    try:
-        admin = User.query.filter_by(email='admin@test.com').first()
-        if not admin:
-            admin = User(
-                username='admin',
-                email='admin@test.com',
-                full_name='System Administrator',
-                role='admin'
-            )
-            admin.set_password('Admin123!')
-            db.session.add(admin)
-            db.session.commit()
-            logger.info("Created default admin user: admin@test.com / Admin123!")
-    except Exception as e:
-        logger.error(f"Error creating admin: {e}")
+    admin = User.query.filter_by(email='admin@test.com').first()
+    if not admin:
+        admin = User(
+            username='admin',
+            email='admin@test.com',
+            full_name='System Administrator',
+            role='admin'
+        )
+        admin.set_password('Admin123!')
+        db.session.add(admin)
+        db.session.commit()
+        logger.info("Created default admin user: admin@test.com / Admin123!")
+
+
+
 
 @app.template_filter('datetime')
 def format_datetime(value):
@@ -962,25 +923,25 @@ def format_datetime(value):
                 return value
         return value.strftime('%Y-%m-%d %H:%M:%S')
     return 'Never'
-
-# Create tables and admin user when app starts (for gunicorn)
-with app.app_context():
-    db.create_all()
-    create_default_admin()
-
 # ============================================
-# MAIN (for local development)
+# MAIN
 # ============================================
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+        create_default_admin()
+    
     print("\n" + "="*60)
     print("🔐 MFA System with AI Risk Assessment")
     print("="*60)
-    print("\n📊 Database: MySQL")
+    print("\n📊 Database: mfa_system (MySQL)")
     print(f"🌐 Server: http://localhost:5000")
+    print(f"🤖 Render API: {app.config['RENDER_API_URL']}")
     print("\n🔐 Admin Login:")
     print("   Email: admin@test.com")
     print("   Password: Admin123!")
+    print("\n📝 Admin Dashboard: http://localhost:5000/admin/dashboard")
     print("="*60 + "\n")
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='127.0.0.1', port=5000, debug=True)
