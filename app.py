@@ -22,17 +22,16 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # ============================================
-# CONFIGURATION - POSTGRESQL VERSION
+# CONFIGURATION - POSTGRESQL FOR RENDER
 # ============================================
 
-# Secret key
+# Secret key from environment
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 
-# PostgreSQL Configuration - Read from Environment Variables
-# Render will set DATABASE_URL automatically if you add a PostgreSQL instance
+# Database configuration - Use Render's DATABASE_URL
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
-    # Manual configuration if DATABASE_URL not set
+    # Fallback for local development with PostgreSQL
     PG_HOST = os.environ.get('PG_HOST', 'localhost')
     PG_USER = os.environ.get('PG_USER', 'postgres')
     PG_PASSWORD = os.environ.get('PG_PASSWORD', '')
@@ -53,7 +52,7 @@ app.config['RENDER_API_URL'] = os.environ.get('RENDER_API_URL', 'https://mfa-r6i
 app.config['RENDER_API_TIMEOUT'] = int(os.environ.get('RENDER_API_TIMEOUT', 5))
 app.config['USE_RENDER_API'] = os.environ.get('USE_RENDER_API', 'true').lower() == 'true'
 
-# Email Configuration
+# Email Configuration (for OTP)
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
@@ -72,7 +71,7 @@ login_manager.login_view = 'login'
 mail = Mail(app)
 
 # ============================================
-# DATABASE MODELS - PostgreSQL Compatible
+# DATABASE MODELS (PostgreSQL Compatible)
 # ============================================
 
 class User(UserMixin, db.Model):
@@ -83,7 +82,6 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(100))
-    # PostgreSQL handles ENUM differently - using String with check constraint
     role = db.Column(db.String(20), default='student')  # 'admin', 'student', 'supervisor'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
@@ -110,7 +108,7 @@ class AuthLog(db.Model):
     __tablename__ = 'auth_logs'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     username = db.Column(db.String(100))
     email = db.Column(db.String(255))
     role = db.Column(db.String(50))
@@ -141,7 +139,7 @@ class OTPCode(db.Model):
     __tablename__ = 'otp_codes'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     otp_code = db.Column(db.String(6), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
     is_used = db.Column(db.Boolean, default=False)
@@ -153,13 +151,13 @@ class RiskRule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     rule_name = db.Column(db.String(100), nullable=False)
     rule_description = db.Column(db.Text)
-    rule_category = db.Column(db.String(20), default='behavior')  # time, location, device, behavior, velocity, threshold
+    rule_category = db.Column(db.String(20), default='behavior')
     risk_weight = db.Column(db.Integer, default=10)
-    condition_type = db.Column(db.String(20), default='equals')  # range, equals, greater_than, less_than, contains, in_list, not_in_list, regex
+    condition_type = db.Column(db.String(20), default='equals')
     condition_field = db.Column(db.String(50), nullable=False)
     condition_value = db.Column(db.Text, nullable=False)
-    risk_level = db.Column(db.String(20), default='medium')  # low, medium, high, critical
-    action_on_match = db.Column(db.String(20), default='log')  # log, alert, challenge, block
+    risk_level = db.Column(db.String(20), default='medium')
+    action_on_match = db.Column(db.String(20), default='log')
     priority = db.Column(db.Integer, default=5)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -169,30 +167,19 @@ class ActionLog(db.Model):
     __tablename__ = 'action_logs'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     action = db.Column(db.String(50))
     reason = db.Column(db.Text)
     risk_score = db.Column(db.Float)
     ip_address = db.Column(db.String(45))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# Add check constraints for PostgreSQL (optional but good practice)
-# These ensure data integrity similar to MySQL ENUM
-from sqlalchemy import CheckConstraint
-
-# Add constraints after table definition
-__table_args__ = (
-    CheckConstraint("role IN ('admin', 'student', 'supervisor')", name='check_role'),
-    CheckConstraint("rule_category IN ('time', 'location', 'device', 'behavior', 'velocity', 'threshold')", name='check_rule_category'),
-    CheckConstraint("risk_level IN ('low', 'medium', 'high', 'critical')", name='check_risk_level'),
-)
-
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 # ============================================
-# HELPER FUNCTIONS (Same as before - unchanged)
+# HELPER FUNCTIONS
 # ============================================
 
 def generate_device_fingerprint():
@@ -391,7 +378,7 @@ def send_otp_email(email, name, otp, role):
         return False
 
 # ============================================
-# AUTHENTICATION ROUTES (All unchanged)
+# AUTHENTICATION ROUTES
 # ============================================
 
 @app.route('/')
@@ -744,7 +731,7 @@ def student_dashboard():
     return render_template('student_dashboard.html', user=current_user, recent_logins=recent_logins)
 
 # ============================================
-# ADDITIONAL ADMIN ROUTES (Unchanged)
+# ADDITIONAL ADMIN ROUTES
 # ============================================
 
 @app.route('/admin/logs')
@@ -947,7 +934,7 @@ def health():
     })
 
 # ============================================
-# CREATE DEFAULT ADMIN (Run once on startup)
+# CREATE DEFAULT ADMIN AND TABLES
 # ============================================
 
 def create_default_admin():
